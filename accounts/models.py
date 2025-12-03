@@ -1,98 +1,59 @@
-from django.contrib import admin
-from django.contrib.auth.admin import UserAdmin
+from django.db import models
 from django.contrib.auth.models import User
-from .models import Profile, Request, Review
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
-# ------------------------------
-# Inline Admin for Profile
-# ------------------------------
-class ProfileInline(admin.StackedInline):
-    model = Profile
-    can_delete = False
-    verbose_name_plural = 'Profile'
-    fk_name = 'user'
+# Profile Model
+class Profile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    phone = models.CharField(max_length=20, blank=True)
 
+    def __str__(self):
+        return self.user.username
 
-# ------------------------------
-# Custom User Admin
-# ------------------------------
-class CustomUserAdmin(UserAdmin):
-    inlines = (ProfileInline,)
-    list_display = ('username', 'email', 'first_name', 'last_name', 'is_staff', 'get_phone')
-    list_select_related = ('profile',)
+@receiver(post_save, sender=User)
+def create_user_profile(sender, instance, created, **kwargs):
+    if created:
+        Profile.objects.create(user=instance)
 
-    def get_phone(self, instance):
-        return instance.profile.phone if hasattr(instance, 'profile') else 'N/A'
-    get_phone.short_description = 'Phone'
-
-    def get_inline_instances(self, request, obj=None):
-        if not obj:
-            return list()
-        return super().get_inline_instances(request, obj)
+@receiver(post_save, sender=User)
+def save_user_profile(sender, instance, **kwargs):
+    instance.profile.save()
 
 
-# ------------------------------
-# Request Admin
-# ------------------------------
-@admin.register(Request)
-class RequestAdmin(admin.ModelAdmin):
-    list_display = ('title', 'user', 'status', 'created_at', 'is_urgent')
-    list_filter = ('status', 'created_at')
-    search_fields = ('title', 'description', 'user__username', 'user__email')
-    readonly_fields = ('created_at', 'updated_at')
-    list_per_page = 20
-    date_hierarchy = 'created_at'
-
-    fieldsets = (
-        ('Request Information', {
-            'fields': ('user', 'title', 'description')
-        }),
-        ('Status', {
-            'fields': ('status',)
-        }),
-        ('Timestamps', {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',)
-        }),
+# Request Model
+class Request(models.Model):
+    STATUS_CHOICES = (
+        ("pending", "Pending"),
+        ("in_progress", "In Progress"),
+        ("completed", "Completed"),
+        ("rejected", "Rejected"),
     )
 
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="requests")
+    title = models.CharField(max_length=255)
+    description = models.TextField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
+    created_at = models.DateTimeField(auto_now_add=True)
 
-# ------------------------------
-# Review Admin
-# ------------------------------
-@admin.register(Review)
-class ReviewAdmin(admin.ModelAdmin):
-    list_display = ('user', 'rating_stars', 'created_at', 'updated_at')
-    list_filter = ('rating', 'created_at')
-    search_fields = ('comment', 'user__username', 'user__email')
-    readonly_fields = ('created_at', 'updated_at', 'stars')
-    list_per_page = 20
-
-    def rating_stars(self, obj):
-        return obj.stars
-    rating_stars.short_description = 'Rating'
-
-    fieldsets = (
-        ('Review Information', {
-            'fields': ('user', 'rating', 'comment')
-        }),
-        ('Timestamps', {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',)
-        }),
-        ('Read-only Fields', {
-            'fields': ('stars',),
-            'classes': ('collapse',)
-        }),
-    )
+    def __str__(self):
+        return f"{self.title} ({self.user.username})"
 
 
-# ------------------------------
-# Register Models
-# ------------------------------
-# Unregister default User admin and register with custom
-admin.site.unregister(User)
-admin.site.register(User, CustomUserAdmin)
+# Review Model
+class Review(models.Model):
+    RATING_CHOICES = [
+        (1, "1 Star"),
+        (2, "2 Stars"),
+        (3, "3 Stars"),
+        (4, "4 Stars"),
+        (5, "5 Stars"),
+    ]
 
-# Profile is registered inline with User, so no separate registration needed
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="reviews")
+    rating = models.IntegerField(choices=RATING_CHOICES)
+    comment = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
 
+    def __str__(self):
+        return f"{self.user.username} - {self.rating} Stars"
