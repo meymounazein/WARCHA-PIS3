@@ -1,19 +1,31 @@
+from django.contrib.auth import authenticate, login, logout
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status
-from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth.models import User
+from rest_framework import status, generics
 from rest_framework.permissions import IsAuthenticated
-from .serializers import RegisterSerializer, LoginSerializer, ProfileSerializer
+from rest_framework.viewsets import ModelViewSet
+
+from .models import Request, Review, Category, Service
+from .serializers import (
+    RegisterSerializer,
+    LoginSerializer,
+    ProfileSerializer,
+    RequestSerializer,
+    ReviewSerializer,
+    CategorySerializer,
+    ServiceSerializer,
+)
 
 class RegisterAPI(APIView):
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response({"message": "User registered successfully"}, status=201)
-        return Response(serializer.errors, status=400)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
 
+        return Response(
+            {"message": "User registered successfully"},
+            status=status.HTTP_201_CREATED,
+        )
 
 class LoginAPI(APIView):
     def post(self, request):
@@ -22,19 +34,25 @@ class LoginAPI(APIView):
 
         user = authenticate(
             username=serializer.validated_data["username"],
-            password=serializer.validated_data["password"]
+            password=serializer.validated_data["password"],
         )
 
-        if user is not None:
-            login(request, user)
-            return Response({"message": "Login successful"}, status=200)
-        return Response({"error": "Invalid credentials"}, status=401)
+        if not user:
+            return Response(
+                {"error": "Invalid credentials"},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        login(request, user)
+        return Response({"message": "Login successful"})
 
 
 class LogoutAPI(APIView):
+    permission_classes = [IsAuthenticated]
+
     def post(self, request):
         logout(request)
-        return Response({"message": "Logged out"}, status=200)
+        return Response({"message": "Logged out successfully"})
 
 
 class ProfileAPI(APIView):
@@ -43,129 +61,54 @@ class ProfileAPI(APIView):
     def get(self, request):
         serializer = ProfileSerializer(request.user)
         return Response(serializer.data)
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
-from .models import Request
-from .serializers import RequestSerializer
 
-class RequestCreateAPI(APIView):
+class RequestCreateAPI(generics.CreateAPIView):
+    serializer_class = RequestSerializer
     permission_classes = [IsAuthenticated]
 
-    def post(self, request):
-        serializer = RequestSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save(user=request.user)
-            return Response(serializer.data, status=201)
-        return Response(serializer.errors, status=400)
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
 
-
-class RequestListAPI(APIView):
+class RequestListAPI(generics.ListAPIView):
+    serializer_class = RequestSerializer
     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
-        user_requests = Request.objects.filter(user=request.user)
-        serializer = RequestSerializer(user_requests, many=True)
-        return Response(serializer.data)
+    def get_queryset(self):
+        return Request.objects.filter(user=self.request.user)
 
-
-class RequestDetailAPI(APIView):
+class RequestDetailAPI(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = RequestSerializer
     permission_classes = [IsAuthenticated]
 
-    def get_object(self, request, pk):
-        try:
-            req = Request.objects.get(pk=pk)
-            if req.user != request.user:
-                return None
-            return req
-        except Request.DoesNotExist:
-            return None
+    def get_queryset(self):
+        return Request.objects.filter(user=self.request.user)
 
-    def get(self, request, pk):
-        req = self.get_object(request, pk)
-        if not req:
-            return Response({"error": "Not found"}, status=404)
-        serializer = RequestSerializer(req)
-        return Response(serializer.data)
-
-    def put(self, request, pk):
-        req = self.get_object(request, pk)
-        if not req:
-            return Response({"error": "Not authorized"}, status=403)
-
-        serializer = RequestSerializer(req, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=400)
-
-    def delete(self, request, pk):
-        req = self.get_object(request, pk)
-        if not req:
-            return Response({"error": "Not authorized"}, status=403)
-        req.delete()
-        return Response({"message": "Request deleted"}, status=200)
-from .models import Review
-from .serializers import ReviewSerializer
-
-
-class ReviewCreateAPI(APIView):
+class ReviewCreateAPI(generics.CreateAPIView):
+    serializer_class = ReviewSerializer
     permission_classes = [IsAuthenticated]
 
-    def post(self, request):
-        serializer = ReviewSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save(user=request.user)
-            return Response(serializer.data, status=201)
-        return Response(serializer.errors, status=400)
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
 
-
-class ReviewListAPI(APIView):
+class ReviewListAPI(generics.ListAPIView):
+    serializer_class = ReviewSerializer
     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
-        reviews = Review.objects.all().order_by("-created_at")
-        serializer = ReviewSerializer(reviews, many=True)
-        return Response(serializer.data)
+    def get_queryset(self):
+        return Review.objects.all().order_by("-created_at")
 
-
-class ReviewDetailAPI(APIView):
+class ReviewDetailAPI(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = ReviewSerializer
     permission_classes = [IsAuthenticated]
 
-    def get_object(self, request, pk):
-        try:
-            review = Review.objects.get(pk=pk)
-            return review
-        except Review.DoesNotExist:
-            return None
+    def get_queryset(self):
+        return Review.objects.filter(user=self.request.user)
 
-    def get(self, request, pk):
-        review = self.get_object(request, pk)
-        if not review:
-            return Response({"error": "Not found"}, status=404)
-        serializer = ReviewSerializer(review)
-        return Response(serializer.data)
+class CategoryViewSet(ModelViewSet):
+    queryset = Category.objects.all()
+    serializer_class = CategorySerializer
 
-    def put(self, request, pk):
-        review = self.get_object(request, pk)
-        if not review:
-            return Response({"error": "Not found"}, status=404)
-        if review.user != request.user:
-            return Response({"error": "Not authorized"}, status=403)
 
-        serializer = ReviewSerializer(review, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=400)
-
-    def delete(self, request, pk):
-        review = self.get_object(request, pk)
-        if not review:
-            return Response({"error": "Not found"}, status=404)
-        if review.user != request.user:
-            return Response({"error": "Not authorized"}, status=403)
-
-        review.delete()
-        return Response({"message": "Review deleted"}, status=200)
+class ServiceViewSet(ModelViewSet):
+    queryset = Service.objects.all()
+    serializer_class = ServiceSerializer

@@ -2,17 +2,18 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = "your-secret-key-here"   # change this in production
+SECRET_KEY = "your-secret-key-here"  # CHANGE IN PRODUCTION
 
 DEBUG = True
 
 ALLOWED_HOSTS = ["*"]
 
 
-# -----------------------------
+# =============================
 # INSTALLED APPS
-# -----------------------------
+# =============================
 INSTALLED_APPS = [
+    # Django core
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -24,16 +25,18 @@ INSTALLED_APPS = [
     "rest_framework",
     "corsheaders",
 
-    # Your apps
+    # Local apps
     "accounts",
+    "services",
+    "professionals",
 ]
 
 
-# -----------------------------
+# =============================
 # MIDDLEWARE
-# -----------------------------
+# =============================
 MIDDLEWARE = [
-    "corsheaders.middleware.CorsMiddleware",   # CORS MUST be on top
+    "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -44,17 +47,16 @@ MIDDLEWARE = [
 ]
 
 
-# -----------------------------
+# =============================
 # URLS & WSGI
-# -----------------------------
-ROOT_URLCONF = "backend.urls"   # Make sure your project folder is named backend
-
+# =============================
+ROOT_URLCONF = "backend.urls"
 WSGI_APPLICATION = "backend.wsgi.application"
 
 
-# -----------------------------
+# =============================
 # DATABASE
-# -----------------------------
+# =============================
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
@@ -63,9 +65,9 @@ DATABASES = {
 }
 
 
-# -----------------------------
+# =============================
 # PASSWORD VALIDATION
-# -----------------------------
+# =============================
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
@@ -74,38 +76,34 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
-# -----------------------------
+# =============================
 # LANGUAGE & TIME
-# -----------------------------
+# =============================
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
 
 
-# -----------------------------
-# STATIC FILES
-# -----------------------------
+# =============================
+# STATIC & MEDIA FILES
+# =============================
 STATIC_URL = "/static/"
-STATICFILES_DIRS = [BASE_DIR / "static"]
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
-
-# -----------------------------
-# MEDIA FILES (optional)
-# -----------------------------
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
 
-# -----------------------------
+# =============================
 # DEFAULT PRIMARY KEY
-# -----------------------------
+# =============================
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 
-# -----------------------------
-# DJANGO REST FRAMEWORK CONFIG
-# -----------------------------
+# =============================
+# DJANGO REST FRAMEWORK
+# =============================
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework.authentication.SessionAuthentication",
@@ -116,7 +114,7 @@ REST_FRAMEWORK = {
 }
 
 
-# -----------------------------
-# CORS HEADERS (needed for frontend)
-# -----------------------------
+# =============================
+# CORS CONFIG
+# =============================
 CORS_ALLOW_ALL_ORIGINS = True
